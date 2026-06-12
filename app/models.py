@@ -13,6 +13,21 @@ from sqlalchemy.sql import func
 from .database import Base
 
 
+class Usuario(Base):
+    """
+    Tabela de usuários do sistema
+    """
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    senha_hash = Column(String, nullable=False)  # Hash da senha (nunca armazenar senha pura)
+    nome_completo = Column(String, nullable=False)
+    ativo = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Computador(Base):
     """
     Tabela de computadores (soft delete = não exclui, apenas desativa)
