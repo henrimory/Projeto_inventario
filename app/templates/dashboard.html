@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Park Computadores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Dashboard</h2>
+    
+    <!-- Cards de métricas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-desktop fa-3x mb-2" style="color: #f05a00;"></i>
+                    <h5 class="card-title">Total de PCs</h5>
+                    <h2 class="card-text" id="total-pcs">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-3x mb-2" style="color: #28a745;"></i>
+                    <h5 class="card-title">Ativos</h5>
+                    <h2 class="card-text" id="ativos-pcs">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-tools fa-3x mb-2" style="color: #fd7e14;"></i>
+                    <h5 class="card-title">Em Manutenção</h5>
+                    <h2 class="card-text" id="manutencao-pcs">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-3x mb-2" style="color: #007bff;"></i>
+                    <h5 class="card-title">Em Uso</h5>
+                    <h2 class="card-text" id="emuso-pcs">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Atalhos -->
+    <div class="filtros-bar mb-4">
+        <h5><i class="fas fa-bolt me-2"></i> Atalhos</h5>
+        <div class="row">
+            <div class="col-md-3 mb-2">
+                <a href="/computadores/novo" class="btn btn-primary w-100">
+                    <i class="fas fa-plus me-2"></i> Novo Computador
+                </a>
+            </div>
+            <div class="col-md-3 mb-2">
+                <a href="/relatorios" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-chart-bar me-2"></i> Relatórios
+                </a>
+            </div>
+            <div class="col-md-3 mb-2">
+                <a href="/logs" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-history me-2"></i> Ver Logs
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Últimos computadores cadastrados -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Últimos Computadores Cadastrados</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Patrimônio</th>
+                            <th>Nome</th>
+                            <th>Status</th>
+                            <th>Data Cadastro</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ultimos-computadores">
+                        <tr>
+                            <td colspan="5" class="text-center">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function carregarDashboard() {
+        try {
+            const response = await fetch('/api/computadores?ativo=true&limit=100');
+            const computadores = await response.json();
+            
+            const total = computadores.length;
+            const ativos = computadores.filter(c => c.ativo === true).length;
+            const manutencao = computadores.filter(c => c.status === 'Manutenção').length;
+            const emUso = computadores.filter(c => c.status === 'Em uso').length;
+            
+            document.getElementById('total-pcs').textContent = total;
+            document.getElementById('ativos-pcs').textContent = ativos;
+            document.getElementById('manutencao-pcs').textContent = manutencao;
+            document.getElementById('emuso-pcs').textContent = emUso;
+            
+            const ultimos = computadores.slice(-5).reverse();
+            const tbody = document.getElementById('ultimos-computadores');
+            
+            if (ultimos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum computador cadastrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = ultimos.map(c => `
+                <tr>
+                    <td>${c.patrimonio}</td>
+                    <td>${c.nome}</td>
+                    <td>
+                        <span class="badge-${c.status === 'Disponível' ? 'ativo' : (c.status === 'Manutenção' ? 'manutencao' : 'em-uso')}">
+                            ${c.status}
+                        </span>
+                    </td>
+                    <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td>
+                        <a href="/computadores/${c.id}/editar" class="btn btn-sm btn-warning">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick="desativar(${c.id})" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+        } catch (error) {
+            console.error('Erro ao carregar dashboard:', error);
+        }
+    }
+    
+    async function desativar(id) {
+        if (confirm('Tem certeza que deseja desativar este computador?')) {
+            await fetch(`/api/computadores/${id}`, { method: 'DELETE' });
+            carregarDashboard();
+        }
+    }
+    
+    carregarDashboard();
+</script>
+{% endblock %}

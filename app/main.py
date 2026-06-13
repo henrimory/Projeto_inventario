@@ -1,6 +1,7 @@
 """
 main.py - API principal do sistema
 """
+
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,6 +13,7 @@ import uuid
 from . import crud, schemas, logs, auth, middleware_auth
 from .database import get_db, engine
 from .models import Base
+from pydantic import BaseModel
 
 # =============================================
 # CRIA AS TABELAS DO BANCO (executa uma vez)
@@ -60,22 +62,29 @@ def startup():
 def pagina_login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
+class LoginSchema(BaseModel):
+    username: str
+    password: str
+
 @app.post("/api/login")
-def login(request: Request, db: Session = Depends(get_db)):
-    body = json.loads(request.body())
-    username = body.get("username")
-    password = body.get("password")
-    
-    usuario = auth.autenticar_usuario(db, username, password)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
-    
-    token = str(uuid.uuid4())
-    middleware_auth.salvar_sessao(token, username)
-    
-    response = RedirectResponse(url="/", status_code=303)
-    response.set_cookie(key="session_token", value=token, httponly=True)
-    return response
+def login(login_data: LoginSchema, db: Session = Depends(get_db)):
+    try:
+        username = login_data.username
+        password = login_data.password
+        
+        usuario = auth.autenticar_usuario(db, username, password)
+        if not usuario:
+            raise HTTPException(status_code=401, detail="Credenciais inválidas")
+        
+        token = str(uuid.uuid4())
+        middleware_auth.salvar_sessao(token, username)
+        
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(key="session_token", value=token, httponly=True)
+        return response
+    except Exception as e:
+        print(f"Erro no login: {e}")
+        raise HTTPException(status_code=401, detail="Erro ao fazer login")
 
 @app.get("/logout")
 def logout(response: Response):
