@@ -15,8 +15,8 @@
         /* Paleta da empresa */
         :root {
             --primary-orange: #f05a00;
-            --primary-orange-dark: #d44e00;
-            --primary-blue: #1a2c3e;
+            --primary-blue: #2c7da0;
+            --primary-blue-hover: #3a9bc5;
             --bg-gray: #f5f5f5;
             --text-dark: #333333;
             --text-light: #ffffff;
@@ -46,7 +46,7 @@
         }
         
         .sidebar a:hover {
-            background-color: rgba(255,255,255,0.1);
+            background-color: var(--primary-blue-hover);
             border-left-color: var(--primary-orange);
         }
         
@@ -60,11 +60,16 @@
         .btn-primary {
             background-color: var(--primary-orange);
             border-color: var(--primary-orange);
+            color: #ffffff;
+            transition: all 0.3s ease;
         }
-        
+
         .btn-primary:hover {
-            background-color: var(--primary-orange-dark);
-            border-color: var(--primary-orange-dark);
+            background-color: var(--primary-orange);
+            border-color: var(--primary-orange);
+            color: #ffffff;
+            opacity: 0.85;
+            transform: scale(1.02);
         }
         
         .btn-outline-primary {
@@ -76,35 +81,70 @@
             background-color: var(--primary-orange);
             border-color: var(--primary-orange);
         }
+
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #2c3e50;
+        }
+
+        .btn-warning:hover {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            opacity: 0.85;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            opacity: 0.85;
+        }
+
         
         /* Cards e conteúdo */
         .card {
             border: none;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #ffffff;
         }
         
         .card-header {
             background-color: var(--primary-blue);
-            color: var(--text-light);
+            color: #ffffff !important;
             border-radius: 8px 8px 0 0 !important;
             padding: 12px 20px;
+        }
+
+        .card-header h5, 
+            .card-header .mb-0 {
+                color: #ffffff !important;
         }
         
         /* Tabelas */
         .table thead th {
             background-color: var(--primary-blue);
-            color: var(--text-light);
+            color: #ffffff !important;
             border: none;
+            padding: 12px;
         }
         
-        .table-hover tbody tr:hover {
-            background-color: rgba(240, 90, 0, 0.05);
+        .table tbody tr {
+            border-bottom: 1px solid var(--border-gray);
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(44, 125, 160, 0.05);
         }
         
         /* Filtros */
         .filtros-bar {
-            background-color: white;
+            background-color: #ffffff;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
@@ -156,6 +196,11 @@
         
         .content {
             padding: 20px;
+            background-color: var(--bg-gray);
+        }
+
+        .content h2, .content h5 {
+            color: var(--text-dark);
         }
     </style>
 </head>

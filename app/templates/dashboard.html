@@ -86,11 +86,28 @@
                         </tr>
                     </thead>
                     <tbody id="ultimos-computadores">
-                        <tr>
-                            <td colspan="5" class="text-center">Carregando...</td>
-                        </tr>
+                        <!-- Loading será inserido via JS -->
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Paginação -->
+            <div id="paginacao" class="d-flex justify-content-between align-items-center mt-3" style="display: none;">
+                <div>
+                    <span id="info-pagina"></span>
+                </div>
+                <div>
+                    <nav>
+                        <ul class="pagination mb-0" id="pagination-controls">
+                            <li class="page-item" id="btn-anterior">
+                                <a class="page-link" href="#" onclick="paginaAnterior(); return false;">Anterior</a>
+                            </li>
+                            <li class="page-item" id="btn-proximo">
+                                <a class="page-link" href="#" onclick="proximaPagina(); return false;">Próximo</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -99,62 +116,161 @@
 
 {% block scripts %}
 <script>
+    let todosComputadores = [];
+    let paginaAtual = 1;
+    let itensPorPagina = 5;
+    
+    // Função para mostrar loading
+    function mostrarLoading() {
+        const tbody = document.getElementById('ultimos-computadores');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center">
+                    <i class="fas fa-spinner fa-spin me-2"></i> Carregando dados...
+                </td>
+            </tr>
+        `;
+    }
+    
+    // Função para mostrar mensagem de vazio
+    function mostrarMensagemVazio() {
+        const tbody = document.getElementById('ultimos-computadores');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                    Nenhum computador cadastrado.
+                    <a href="/computadores/novo" class="btn btn-sm btn-primary ms-2">
+                        <i class="fas fa-plus"></i> Cadastrar primeiro computador
+                    </a>
+                </td>
+            </tr>
+        `;
+        document.getElementById('paginacao').style.display = 'none';
+    }
+    
+    // Função para atualizar a tabela com paginação
+    function atualizarTabela() {
+        const inicio = (paginaAtual - 1) * itensPorPagina;
+        const fim = inicio + itensPorPagina;
+        const computadoresPagina = todosComputadores.slice(inicio, fim);
+        const totalPaginas = Math.ceil(todosComputadores.length / itensPorPagina);
+        
+        const tbody = document.getElementById('ultimos-computadores');
+        
+        if (computadoresPagina.length === 0 && todosComputadores.length > 0) {
+            paginaAtual = totalPaginas;
+            atualizarTabela();
+            return;
+        }
+        
+        tbody.innerHTML = computadoresPagina.map(c => `
+            <tr>
+                <td><strong>${c.patrimonio}</strong></td>
+                <td>${c.nome}</td>
+                <td>
+                    <span class="badge-${c.status === 'Disponível' ? 'ativo' : (c.status === 'Manutenção' ? 'manutencao' : 'em-uso')}">
+                        ${c.status}
+                    </span>
+                </td>
+                <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
+                <td>
+                    <a href="/computadores/${c.id}/editar" class="btn btn-sm btn-warning" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button onclick="desativar(${c.id})" class="btn btn-sm btn-danger" title="Desativar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Atualizar informações da paginação
+        const total = todosComputadores.length;
+        const inicioExib = total === 0 ? 0 : inicio + 1;
+        const fimExib = Math.min(fim, total);
+        
+        document.getElementById('info-pagina').innerHTML = `Mostrando ${inicioExib} - ${fimExib} de ${total} computador(es)`;
+        
+        // Atualizar estado dos botões
+        document.getElementById('btn-anterior').classList.toggle('disabled', paginaAtual === 1);
+        document.getElementById('btn-proximo').classList.toggle('disabled', paginaAtual === totalPaginas || total === 0);
+        
+        // Mostrar/esconder paginação
+        document.getElementById('paginacao').style.display = total > itensPorPagina ? 'flex' : 'none';
+    }
+    
+    function paginaAnterior() {
+        if (paginaAtual > 1) {
+            paginaAtual--;
+            atualizarTabela();
+        }
+    }
+    
+    function proximaPagina() {
+        const totalPaginas = Math.ceil(todosComputadores.length / itensPorPagina);
+        if (paginaAtual < totalPaginas) {
+            paginaAtual++;
+            atualizarTabela();
+        }
+    }
+    
+    // Função para carregar o dashboard
     async function carregarDashboard() {
+        mostrarLoading();
+        
         try {
-            const response = await fetch('/api/computadores?ativo=true&limit=100');
+            const response = await fetch('/api/computadores?ativo=true&limit=1000');
             const computadores = await response.json();
             
+            // Calcula métricas
             const total = computadores.length;
             const ativos = computadores.filter(c => c.ativo === true).length;
             const manutencao = computadores.filter(c => c.status === 'Manutenção').length;
             const emUso = computadores.filter(c => c.status === 'Em uso').length;
             
+            // Atualiza cards
             document.getElementById('total-pcs').textContent = total;
             document.getElementById('ativos-pcs').textContent = ativos;
             document.getElementById('manutencao-pcs').textContent = manutencao;
             document.getElementById('emuso-pcs').textContent = emUso;
             
-            const ultimos = computadores.slice(-5).reverse();
-            const tbody = document.getElementById('ultimos-computadores');
+            // Ordena do mais recente para o mais antigo
+            todosComputadores = computadores.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             
-            if (ultimos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum computador cadastrado</td></tr>';
-                return;
+            if (todosComputadores.length === 0) {
+                mostrarMensagemVazio();
+            } else {
+                paginaAtual = 1;
+                atualizarTabela();
             }
-            
-            tbody.innerHTML = ultimos.map(c => `
-                <tr>
-                    <td>${c.patrimonio}</td>
-                    <td>${c.nome}</td>
-                    <td>
-                        <span class="badge-${c.status === 'Disponível' ? 'ativo' : (c.status === 'Manutenção' ? 'manutencao' : 'em-uso')}">
-                            ${c.status}
-                        </span>
-                    </td>
-                    <td>${new Date(c.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td>
-                        <a href="/computadores/${c.id}/editar" class="btn btn-sm btn-warning">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <button onclick="desativar(${c.id})" class="btn btn-sm btn-danger">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
             
         } catch (error) {
             console.error('Erro ao carregar dashboard:', error);
+            const tbody = document.getElementById('ultimos-computadores');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Erro ao carregar dados. Verifique a conexão.
+                    </td>
+                </tr>
+            `;
         }
     }
     
     async function desativar(id) {
         if (confirm('Tem certeza que deseja desativar este computador?')) {
-            await fetch(`/api/computadores/${id}`, { method: 'DELETE' });
-            carregarDashboard();
+            try {
+                await fetch(`/api/computadores/${id}`, { method: 'DELETE' });
+                carregarDashboard();
+            } catch (error) {
+                alert('Erro ao desativar computador');
+            }
         }
     }
     
+    // Carrega os dados ao abrir a página
     carregarDashboard();
 </script>
 {% endblock %}
