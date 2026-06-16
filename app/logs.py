@@ -7,17 +7,11 @@ Registra automaticamente todas as alterações feitas nos registros.
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from . import models
+from datetime import datetime
+import pytz
 
 
-def registrar_log(
-    db: Session,
-    tabela: str,
-    registro_id: int,
-    campo: str,
-    valor_antigo: Optional[Any],
-    valor_novo: Optional[Any],
-    usuario: str = "sistema"
-):
+def registrar_log(db: Session, tabela: str, registro_id: int, campo: str, valor_antigo: Optional[Any], valor_novo: Optional[Any], usuario: str = "sistema"):
     """Registra uma alteração na tabela de logs."""
     
     valor_antigo_str = str(valor_antigo) if valor_antigo is not None else ""
@@ -26,13 +20,18 @@ def registrar_log(
     if valor_antigo_str == valor_novo_str:
         return
     
+    # Pega o horário atual de São Paulo
+    sp_tz = pytz.timezone('America/Sao_Paulo')
+    agora_sp = datetime.now(sp_tz)
+    
     log = models.LogEdicao(
         tabela=tabela,
         registro_id=registro_id,
         campo=campo,
         valor_antigo=valor_antigo_str,
         valor_novo=valor_novo_str,
-        usuario=usuario
+        usuario=usuario,
+        data_hora=agora_sp  # ← Horário de SP
     )
     
     db.add(log)
@@ -74,8 +73,10 @@ def buscar_logs_por_registro(db: Session, tabela: str, registro_id: int):
     ).order_by(models.LogEdicao.data_hora.desc()).all()
 
 
-def buscar_logs_recentes(db: Session, limite: int = 50):
-    """Retorna os logs mais recentes."""
-    return db.query(models.LogEdicao).order_by(
-        models.LogEdicao.data_hora.desc()
-    ).limit(limite).all()
+def buscar_logs_recentes(db: Session, limite: int = 1000):
+    """Retorna os logs mais recentes (sem limite se limite = 0)"""
+    query = db.query(models.LogEdicao).order_by(models.LogEdicao.data_hora.desc())
+    
+    if limite > 0:
+        return query.limit(limite).all()
+    return query.all()  # Retorna todos se limite = 0

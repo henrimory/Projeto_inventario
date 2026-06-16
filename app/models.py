@@ -8,9 +8,10 @@ Autor: Henrique Oliveira
 Data: 06/2026
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, func
+import pytz
 from .database import Base
+from datetime import datetime
 
 
 class Usuario(Base):
@@ -60,17 +61,18 @@ class Computador(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+# Função para pegar horário de São Paulo
+def get_sp_time():
+    return datetime.now(pytz.timezone('America/Sao_Paulo'))
+
 class LogEdicao(Base):
-    """
-    Tabela de auditoria - guarda histórico de todas as alterações
-    """
     __tablename__ = "logs_edicoes"
 
     id = Column(Integer, primary_key=True, index=True)
-    tabela = Column(String)  # Nome da tabela alterada (ex: "computadores")
-    registro_id = Column(Integer)  # ID do registro alterado
-    campo = Column(String)  # Nome do campo modificado
-    valor_antigo = Column(Text, nullable=True)  # Valor antes da alteração
-    valor_novo = Column(Text, nullable=True)  # Valor depois da alteração
-    usuario = Column(String, default="sistema")  # Quem fez a alteração
-    data_hora = Column(DateTime(timezone=True), server_default=func.now())
+    tabela = Column(String)
+    registro_id = Column(Integer)
+    campo = Column(String)
+    valor_antigo = Column(Text, nullable=True)
+    valor_novo = Column(Text, nullable=True)
+    usuario = Column(String, default="sistema")
+    data_hora = Column(DateTime(timezone=True), default=get_sp_time)  # ← Alterado

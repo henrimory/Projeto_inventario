@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Park Computadores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-history me-2"></i> Logs de Auditoria</h2>
+            <p class="text-muted">Histórico completo de todas as alterações realizadas no sistema</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-bar mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Usuário</label>
+                <input type="text" class="form-control" id="filtroUsuario" placeholder="Filtrar por usuário">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Campo Alterado</label>
+                <input type="text" class="form-control" id="filtroCampo" placeholder="Ex: status, patrimonio">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Data Inicial</label>
+                <input type="date" class="form-control" id="filtroDataInicio">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Data Final</label>
+                <input type="date" class="form-control" id="filtroDataFim">
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-12 text-end">
+                <button class="btn btn-primary" id="btnFiltrar">
+                    <i class="fas fa-search me-2"></i> Filtrar
+                </button>
+                <button class="btn btn-secondary" id="btnLimpar">
+                    <i class="fas fa-eraser me-2"></i> Limpar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Logs -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i> Histórico de Alterações</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Computador</th>
+                            <th>Campo</th>
+                            <th>Valor Antigo</th>
+                            <th>Valor Novo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-logs">
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <i class="fas fa-spinner fa-spin me-2"></i> Carregando...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            <div id="paginacao" class="d-flex justify-content-between align-items-center mt-3" style="display: none;">
+                <div>
+                    <span id="info-pagina"></span>
+                </div>
+                <div>
+                    <nav>
+                        <ul class="pagination mb-0">
+                            <li class="page-item" id="btn-anterior">
+                                <a class="page-link" href="#" onclick="paginaAnterior(); return false;">Anterior</a>
+                            </li>
+                            <li class="page-item" id="btn-proximo">
+                                <a class="page-link" href="#" onclick="proximaPagina(); return false;">Próximo</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let todosLogs = [];
+    let paginaAtual = 1;
+    let itensPorPagina = 15;
+
+    function aplicarFiltros() {
+        const usuario = document.getElementById('filtroUsuario').value.toLowerCase();
+        const campo = document.getElementById('filtroCampo').value.toLowerCase();
+        const dataInicio = document.getElementById('filtroDataInicio').value;
+        const dataFim = document.getElementById('filtroDataFim').value;
+
+        return todosLogs.filter(log => {
+            if (usuario && !log.usuario.toLowerCase().includes(usuario)) return false;
+            if (campo && !log.campo.toLowerCase().includes(campo)) return false;
+            
+            if (dataInicio) {
+                const dataLog = new Date(log.data_hora).toISOString().split('T')[0];
+                if (dataLog < dataInicio) return false;
+            }
+            if (dataFim) {
+                const dataLog = new Date(log.data_hora).toISOString().split('T')[0];
+                if (dataLog > dataFim) return false;
+            }
+            
+            return true;
+        });
+    }
+
+    function formatarData(data) {
+        // A data já vem formatada do backend
+        return data;
+    }
+
+    function formatarValor(valor) {
+        if (!valor || valor === '') return '<span class="text-muted">—</span>';
+        if (valor === 'True') return '<span class="badge-ativo">Sim</span>';
+        if (valor === 'False') return '<span class="badge-inativo">Não</span>';
+        return valor;
+    }
+
+    function atualizarTabela() {
+        const dadosFiltrados = aplicarFiltros();
+        const total = dadosFiltrados.length;
+        const totalPaginas = Math.ceil(total / itensPorPagina);
+
+        if (paginaAtual > totalPaginas) paginaAtual = totalPaginas || 1;
+
+        const inicio = (paginaAtual - 1) * itensPorPagina;
+        const fim = inicio + itensPorPagina;
+        const paginaDados = dadosFiltrados.slice(inicio, fim);
+
+        const tbody = document.getElementById('tabela-logs');
+
+        if (paginaDados.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        Nenhum registro de log encontrado.
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = paginaDados.map(log => `
+                <tr>
+                    <td><small>${formatarData(log.data_hora)}</small></td>
+                    <td><strong>${log.usuario}</strong></td>
+                    <td><strong>#${log.registro_id}</strong></td>
+                    <td><span class="badge bg-secondary">${log.campo}</span></td>
+                    <td>${formatarValor(log.valor_antigo)}</td>
+                    <td>${formatarValor(log.valor_novo)}</td>
+                </tr>
+            `).join('');
+        }
+
+        const inicioExib = total === 0 ? 0 : inicio + 1;
+        const fimExib = Math.min(fim, total);
+        document.getElementById('info-pagina').innerHTML = `Mostrando ${inicioExib} - ${fimExib} de ${total} registro(s)`;
+
+        document.getElementById('btn-anterior').classList.toggle('disabled', paginaAtual === 1);
+        document.getElementById('btn-proximo').classList.toggle('disabled', paginaAtual === totalPaginas || total === 0);
+        document.getElementById('paginacao').style.display = total > itensPorPagina ? 'flex' : 'none';
+    }
+
+    function paginaAnterior() {
+        if (paginaAtual > 1) {
+            paginaAtual--;
+            atualizarTabela();
+        }
+    }
+
+    function proximaPagina() {
+        const dadosFiltrados = aplicarFiltros();
+        const totalPaginas = Math.ceil(dadosFiltrados.length / itensPorPagina);
+        if (paginaAtual < totalPaginas) {
+            paginaAtual++;
+            atualizarTabela();
+        }
+    }
+
+    async function carregarLogs() {
+        try {
+            const response = await fetch('/api/logs/?limite=0');
+            if (!response.ok) throw new Error('Erro na API');
+            todosLogs = await response.json();
+            paginaAtual = 1;
+            atualizarTabela();
+        } catch (error) {
+            console.error('Erro ao carregar logs:', error);
+            document.getElementById('tabela-logs').innerHTML = `
+                <tr><td colspan="6" class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erro ao carregar logs. Verifique a conexão.
+                </td></tr>
+            `;
+        }
+    }
+
+    // Eventos
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+        paginaAtual = 1;
+        atualizarTabela();
+    });
+
+    document.getElementById('btnLimpar').addEventListener('click', () => {
+        document.getElementById('filtroUsuario').value = '';
+        document.getElementById('filtroCampo').value = '';
+        document.getElementById('filtroDataInicio').value = '';
+        document.getElementById('filtroDataFim').value = '';
+        paginaAtual = 1;
+        atualizarTabela();
+    });
+
+    // Carregar logs ao abrir a página
+    carregarLogs();
+</script>
+{% endblock %}

@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
 import uuid
-
+import pytz
+from datetime import datetime
 from . import crud, schemas, logs, auth, middleware_auth
 from .database import get_db, engine
 from .models import Base
@@ -286,8 +287,24 @@ def api_reativar_computador(computador_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/logs/")
-def api_listar_logs(limite: int = 50, db: Session = Depends(get_db)):
-    return logs.buscar_logs_recentes(db, limite)
+def api_listar_logs(limite: int = 1000, db: Session = Depends(get_db)):
+    logs_lista = logs.buscar_logs_recentes(db, limite)
+    
+    # Converte para dicionário com data formatada
+    resultado = []
+    for log in logs_lista:
+        resultado.append({
+            "id": log.id,
+            "tabela": log.tabela,
+            "registro_id": log.registro_id,
+            "campo": log.campo,
+            "valor_antigo": log.valor_antigo,
+            "valor_novo": log.valor_novo,
+            "usuario": log.usuario,
+            "data_hora": formatar_data_br(log.data_hora)  # Data já formatada
+        })
+    
+    return resultado
 
 
 @app.get("/api/computadores/{computador_id}/logs/")
@@ -296,3 +313,18 @@ def api_buscar_logs_do_computador(computador_id: int, db: Session = Depends(get_
     if not computador:
         raise HTTPException(status_code=404, detail="Computador não encontrado")
     return logs.buscar_logs_por_registro(db, "computadores", computador_id)
+
+
+def formatar_data_br(data):
+    """Converte datetime para string no formato brasileiro (horário de SP)"""
+    if data:
+        # Se a data não tem timezone, adiciona o timezone de SP
+        if data.tzinfo is None:
+            sp_tz = pytz.timezone('America/Sao_Paulo')
+            data = sp_tz.localize(data)
+        
+        # Converte para o horário de SP e formata
+        sp_tz = pytz.timezone('America/Sao_Paulo')
+        data_sp = data.astimezone(sp_tz)
+        return data_sp.strftime("%d/%m/%Y %H:%M:%S")
+    return ""
