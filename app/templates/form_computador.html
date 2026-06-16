@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if computador %}
+        Editar Computador - {{ computador.patrimonio }}
+    {% else %}
+        Novo Computador
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>
+                {% if computador %}
+                    <i class="fas fa-edit me-2"></i> Editar Computador
+                {% else %}
+                    <i class="fas fa-plus-circle me-2"></i> Novo Computador
+                {% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if computador %}
+                    Alterando informações do computador: <strong>{{ computador.patrimonio }}</strong>
+                {% else %}
+                    Preencha os dados abaixo para cadastrar um novo computador
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-desktop me-2"></i> 
+                {% if computador %}Edição{% else %}Cadastro{% endif %} de Computador
+            </h5>
+        </div>
+        <div class="card-body">
+            <form id="formComputador">
+                <input type="hidden" id="computador_id" value="{{ computador.id if computador else '' }}">
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Patrimônio *</label>
+                        <input type="text" class="form-control" id="patrimonio" 
+                               value="{{ computador.patrimonio if computador else '' }}" required>
+                        <small class="text-muted">Número único de identificação do equipamento</small>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nome do Computador *</label>
+                        <input type="text" class="form-control" id="nome" 
+                               value="{{ computador.nome if computador else '' }}" required>
+                        <small class="text-muted">Ex: Desktop Adm, Lab01-PC05</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Marca</label>
+                        <input type="text" class="form-control" id="marca" 
+                               value="{{ computador.marca if computador else '' }}">
+                        <small class="text-muted">Ex: Dell, HP, Lenovo</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Modelo</label>
+                        <input type="text" class="form-control" id="modelo" 
+                               value="{{ computador.modelo if computador else '' }}">
+                        <small class="text-muted">Ex: Optiplex, ThinkPad</small>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Processador</label>
+                        <input type="text" class="form-control" id="processador" 
+                               value="{{ computador.processador if computador else '' }}">
+                        <small class="text-muted">Ex: Intel i5, Ryzen 7</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Memória RAM</label>
+                        <input type="text" class="form-control" id="memoria_ram" 
+                               value="{{ computador.memoria_ram if computador else '' }}">
+                        <small class="text-muted">Ex: 8GB, 16GB</small>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Armazenamento</label>
+                        <input type="text" class="form-control" id="armazenamento" 
+                               value="{{ computador.armazenamento if computador else '' }}">
+                        <small class="text-muted">Ex: 256GB SSD, 1TB HD</small>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="status">
+                            <option value="Disponível" {% if computador and computador.status == 'Disponível' %}selected{% endif %}>Disponível</option>
+                            <option value="Em uso" {% if computador and computador.status == 'Em uso' %}selected{% endif %}>Em uso</option>
+                            <option value="Manutenção" {% if computador and computador.status == 'Manutenção' %}selected{% endif %}>Manutenção</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Localização</label>
+                        <input type="text" class="form-control" id="localizacao" 
+                               value="{{ computador.localizacao if computador else '' }}">
+                        <small class="text-muted">Ex: Sala 101, Lab 2</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Usuário Responsável</label>
+                    <input type="text" class="form-control" id="usuario_responsavel" 
+                           value="{{ computador.usuario_responsavel if computador else '' }}">
+                    <small class="text-muted">Nome da pessoa que utiliza o equipamento</small>
+                </div>
+
+                <!-- Botões -->
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" id="btnSalvar">
+                        <i class="fas fa-save me-2"></i> Salvar
+                    </button>
+                    <a href="/computadores" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i> Cancelar
+                    </a>
+                </div>
+                
+                <div id="mensagem" class="alert mt-3" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const form = document.getElementById('formComputador');
+    const mensagemDiv = document.getElementById('mensagem');
+    const btnSalvar = document.getElementById('btnSalvar');
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Desabilita botão para evitar duplo clique
+        btnSalvar.disabled = true;
+        btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Salvando...';
+        
+        const computadorId = document.getElementById('computador_id').value;
+        const dados = {
+            patrimonio: document.getElementById('patrimonio').value,
+            nome: document.getElementById('nome').value,
+            marca: document.getElementById('marca').value,
+            modelo: document.getElementById('modelo').value,
+            processador: document.getElementById('processador').value,
+            memoria_ram: document.getElementById('memoria_ram').value,
+            armazenamento: document.getElementById('armazenamento').value,
+            status: document.getElementById('status').value,
+            localizacao: document.getElementById('localizacao').value,
+            usuario_responsavel: document.getElementById('usuario_responsavel').value
+        };
+        
+        const url = computadorId ? `/api/computadores/${computadorId}` : '/api/computadores/';
+        const method = computadorId ? 'PUT' : 'POST';
+        
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dados)
+            });
+            
+            if (response.ok) {
+                mostrarMensagem('success', 'Computador salvo com sucesso! Redirecionando...');
+                setTimeout(() => {
+                    window.location.href = '/computadores';
+                }, 1500);
+            } else {
+                const erro = await response.json();
+                mostrarMensagem('danger', `Erro: ${erro.detail || 'Erro ao salvar computador'}`);
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = '<i class="fas fa-save me-2"></i> Salvar';
+            }
+        } catch (error) {
+            mostrarMensagem('danger', 'Erro de conexão com o servidor');
+            btnSalvar.disabled = false;
+            btnSalvar.innerHTML = '<i class="fas fa-save me-2"></i> Salvar';
+        }
+    });
+    
+    function mostrarMensagem(tipo, texto) {
+        mensagemDiv.className = `alert alert-${tipo}`;
+        mensagemDiv.innerHTML = `<i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i> ${texto}`;
+        mensagemDiv.style.display = 'block';
+        
+        // Scroll para a mensagem
+        mensagemDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+</script>
+{% endblock %}

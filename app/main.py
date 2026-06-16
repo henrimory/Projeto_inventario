@@ -201,3 +201,98 @@ def buscar_logs_do_computador(computador_id: int, db: Session = Depends(get_db))
     if not computador:
         raise HTTPException(status_code=404, detail="Computador não encontrado")
     return logs.buscar_logs_por_registro(db, "computadores", computador_id)
+
+# =============================================
+# ROTAS DA API
+# =============================================
+
+@app.get("/api/computadores/", response_model=List[schemas.ComputadorResponse])
+def api_listar_computadores(
+    ativo: Optional[bool] = True,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    return crud.listar_computadores(db, ativo=ativo, skip=skip, limit=limit)
+
+
+@app.post("/api/computadores/", response_model=schemas.ComputadorResponse, status_code=status.HTTP_201_CREATED)
+def api_criar_computador(computador: schemas.ComputadorCreate, db: Session = Depends(get_db)):
+    # Verifica se patrimônio já existe
+    existente = crud.buscar_computador_por_patrimonio(db, computador.patrimonio)
+    if existente:
+        raise HTTPException(status_code=400, detail="Patrimônio já cadastrado")
+    return crud.criar_computador(db, computador)
+
+
+@app.get("/api/computadores/{computador_id}", response_model=schemas.ComputadorResponse)
+def api_buscar_computador(computador_id: int, db: Session = Depends(get_db)):
+    computador = crud.buscar_computador_por_id(db, computador_id)
+    if not computador:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    return computador
+
+
+@app.put("/api/computadores/{computador_id}", response_model=schemas.ComputadorResponse)
+def api_atualizar_computador(
+    computador_id: int,
+    computador_update: schemas.ComputadorUpdate,
+    db: Session = Depends(get_db)
+):
+    computador_antigo = crud.buscar_computador_por_id(db, computador_id)
+    if not computador_antigo:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    
+    # Guarda valores antigos para log
+    valores_antigos = {c.name: getattr(computador_antigo, c.name) for c in computador_antigo.__table__.columns}
+    
+    computador_novo = crud.atualizar_computador(db, computador_id, computador_update)
+    if not computador_novo:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    
+    # Guarda valores novos para log
+    valores_novos = {c.name: getattr(computador_novo, c.name) for c in computador_novo.__table__.columns}
+    
+    # Registra logs
+    logs.registrar_log_comparativo(
+        db=db, tabela="computadores", registro_id=computador_id,
+        dados_antigos=valores_antigos, dados_novos=valores_novos, usuario="sistema"
+    )
+    
+    db.commit()
+    return computador_novo
+
+
+@app.delete("/api/computadores/{computador_id}")
+def api_desativar_computador(computador_id: int, db: Session = Depends(get_db)):
+    computador = crud.desativar_computador(db, computador_id)
+    if not computador:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    
+    logs.registrar_log(db, "computadores", computador_id, "ativo", True, False, "sistema")
+    db.commit()
+    return {"message": "Computador desativado com sucesso"}
+
+
+@app.patch("/api/computadores/{computador_id}/reativar")
+def api_reativar_computador(computador_id: int, db: Session = Depends(get_db)):
+    computador = crud.ativar_computador(db, computador_id)
+    if not computador:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    
+    logs.registrar_log(db, "computadores", computador_id, "ativo", False, True, "sistema")
+    db.commit()
+    return {"message": "Computador reativado com sucesso"}
+
+
+@app.get("/api/logs/")
+def api_listar_logs(limite: int = 50, db: Session = Depends(get_db)):
+    return logs.buscar_logs_recentes(db, limite)
+
+
+@app.get("/api/computadores/{computador_id}/logs/")
+def api_buscar_logs_do_computador(computador_id: int, db: Session = Depends(get_db)):
+    computador = crud.buscar_computador_por_id(db, computador_id)
+    if not computador:
+        raise HTTPException(status_code=404, detail="Computador não encontrado")
+    return logs.buscar_logs_por_registro(db, "computadores", computador_id)

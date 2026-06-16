@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Computadores - Park Computadores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-desktop me-2"></i> Computadores</h2>
+            <p class="text-muted">Gerenciamento completo do parque de computadores</p>
+        </div>
+        <div class="col text-end">
+            <a href="/computadores/novo" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i> Novo Computador
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-bar mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="filtroStatus">
+                    <option value="todos">Todos</option>
+                    <option value="Disponível">Disponível</option>
+                    <option value="Em uso">Em uso</option>
+                    <option value="Manutenção">Manutenção</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Localização</label>
+                <input type="text" class="form-control" id="filtroLocalizacao" placeholder="Filtrar por localização">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Patrimônio</label>
+                <input type="text" class="form-control" id="filtroPatrimonio" placeholder="Buscar por patrimônio">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-primary w-100" id="btnLimparFiltros">
+                    <i class="fas fa-eraser me-2"></i> Limpar Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de computadores -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i> Lista de Computadores</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Patrimônio</th>
+                            <th>Nome</th>
+                            <th>Marca/Modelo</th>
+                            <th>Status</th>
+                            <th>Localização</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-computadores">
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <i class="fas fa-spinner fa-spin me-2"></i> Carregando...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginação -->
+            <div id="paginacao" class="d-flex justify-content-between align-items-center mt-3" style="display: none;">
+                <div>
+                    <span id="info-pagina"></span>
+                </div>
+                <div>
+                    <nav>
+                        <ul class="pagination mb-0">
+                            <li class="page-item" id="btn-anterior">
+                                <a class="page-link" href="#" onclick="paginaAnterior(); return false;">Anterior</a>
+                            </li>
+                            <li class="page-item" id="btn-proximo">
+                                <a class="page-link" href="#" onclick="proximaPagina(); return false;">Próximo</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let todosComputadores = [];
+    let paginaAtual = 1;
+    let itensPorPagina = 10;
+    
+    function aplicarFiltros() {
+        const status = document.getElementById('filtroStatus').value;
+        const localizacao = document.getElementById('filtroLocalizacao').value.toLowerCase();
+        const patrimonio = document.getElementById('filtroPatrimonio').value.toLowerCase();
+        
+        return todosComputadores.filter(c => {
+            if (status !== 'todos' && c.status !== status) return false;
+            if (localizacao && !(c.localizacao || '').toLowerCase().includes(localizacao)) return false;
+            if (patrimonio && !c.patrimonio.toLowerCase().includes(patrimonio)) return false;
+            return true;
+        });
+    }
+    
+    function atualizarTabela() {
+        const dadosFiltrados = aplicarFiltros();
+        const total = dadosFiltrados.length;
+        const totalPaginas = Math.ceil(total / itensPorPagina);
+        
+        if (paginaAtual > totalPaginas) paginaAtual = totalPaginas || 1;
+        
+        const inicio = (paginaAtual - 1) * itensPorPagina;
+        const fim = inicio + itensPorPagina;
+        const paginaDados = dadosFiltrados.slice(inicio, fim);
+        
+        const tbody = document.getElementById('tabela-computadores');
+        
+        if (paginaDados.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                        Nenhum computador encontrado.
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = paginaDados.map(c => `
+                <tr>
+                    <td><strong>${c.patrimonio}</strong></td>
+                    <td>${c.nome}</td>
+                    <td>${c.marca || '-'} ${c.modelo || ''}</td>
+                    <td>
+                        <span class="badge-${c.status === 'Disponível' ? 'ativo' : (c.status === 'Manutenção' ? 'manutencao' : 'em-uso')}">
+                            ${c.status}
+                        </span>
+                    </td>
+                    <td>${c.localizacao || '-'}</td>
+                    <td>
+                        <a href="/computadores/${c.id}/editar" class="btn btn-sm btn-warning" title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick="desativar(${c.id})" class="btn btn-sm btn-danger" title="Desativar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        const inicioExib = total === 0 ? 0 : inicio + 1;
+        const fimExib = Math.min(fim, total);
+        document.getElementById('info-pagina').innerHTML = `Mostrando ${inicioExib} - ${fimExib} de ${total} computador(es)`;
+        
+        document.getElementById('btn-anterior').classList.toggle('disabled', paginaAtual === 1);
+        document.getElementById('btn-proximo').classList.toggle('disabled', paginaAtual === totalPaginas || total === 0);
+        document.getElementById('paginacao').style.display = total > itensPorPagina ? 'flex' : 'none';
+    }
+    
+    function paginaAnterior() {
+        if (paginaAtual > 1) {
+            paginaAtual--;
+            atualizarTabela();
+        }
+    }
+    
+    function proximaPagina() {
+        const dadosFiltrados = aplicarFiltros();
+        const totalPaginas = Math.ceil(dadosFiltrados.length / itensPorPagina);
+        if (paginaAtual < totalPaginas) {
+            paginaAtual++;
+            atualizarTabela();
+        }
+    }
+    
+    async function carregarComputadores() {
+        try {
+            const response = await fetch('/api/computadores/?ativo=true&limit=1000');
+            if (!response.ok) throw new Error('Erro na API');
+            todosComputadores = await response.json();
+            paginaAtual = 1;
+            atualizarTabela();
+        } catch (error) {
+            console.error('Erro ao carregar:', error);
+            document.getElementById('tabela-computadores').innerHTML = `
+                <tr><td colspan="6" class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erro ao carregar dados. Verifique a conexão.
+                </td></tr>
+            `;
+        }
+    }
+    
+    async function desativar(id) {
+        if (confirm('Tem certeza que deseja desativar este computador?')) {
+            await fetch(`/api/computadores/${id}`, { method: 'DELETE' });
+            carregarComputadores();
+        }
+    }
+    
+    document.getElementById('filtroStatus').addEventListener('change', () => { paginaAtual = 1; atualizarTabela(); });
+    document.getElementById('filtroLocalizacao').addEventListener('input', () => { paginaAtual = 1; atualizarTabela(); });
+    document.getElementById('filtroPatrimonio').addEventListener('input', () => { paginaAtual = 1; atualizarTabela(); });
+    document.getElementById('btnLimparFiltros').addEventListener('click', () => {
+        document.getElementById('filtroStatus').value = 'todos';
+        document.getElementById('filtroLocalizacao').value = '';
+        document.getElementById('filtroPatrimonio').value = '';
+        paginaAtual = 1;
+        atualizarTabela();
+    });
+    
+    carregarComputadores();
+</script>
+{% endblock %}
