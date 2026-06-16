@@ -9,11 +9,12 @@
     <style>
         :root {
             --primary-orange: #f05a00;
-            --primary-blue: #1a2c3e;
+            --primary-blue: #2c7da0;
+            --primary-blue-dark: #1a5a7a;
         }
         
         body {
-            background: linear-gradient(135deg, var(--primary-blue) 0%, #2c3e50 100%);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -61,12 +62,17 @@
         .alert {
             display: none;
         }
+        
+        .form-control:focus {
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 0.2rem rgba(240, 90, 0, 0.25);
+        }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div class="logo">
-            <i class="fas fa-desktop fa-3x" style="color: #f05a00;"></i>
+            <i class="fas fa-desktop fa-3x" style="color: var(--primary-orange);"></i>
             <h2>PARK<span>Manager</span></h2>
             <p class="text-muted">Sistema de Gerenciamento de Computadores</p>
         </div>

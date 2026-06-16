@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - Park Computadores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="fas fa-chart-bar me-2"></i> Relatórios</h2>
+            <p class="text-muted">Análise estatística do parque de computadores</p>
+        </div>
+    </div>
+
+    <!-- Cards de estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center bg-primary text-white">
+                <div class="card-body">
+                    <h3 id="total-rel">0</h3>
+                    <p class="mb-0">Total de Computadores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-success text-white">
+                <div class="card-body">
+                    <h3 id="ativos-rel">0</h3>
+                    <p class="mb-0">Ativos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-warning text-white">
+                <div class="card-body">
+                    <h3 id="manutencao-rel">0</h3>
+                    <p class="mb-0">Em Manutenção</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-info text-white">
+                <div class="card-body">
+                    <h3 id="emuso-rel">0</h3>
+                    <p class="mb-0">Em Uso</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Gráfico de Status (Pizza) -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> Computadores por Status</h5>
+                </div>
+                <div class="card-body text-center">
+                    <canvas id="graficoStatus" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Localização (Barras) -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Top 5 Localizações</h5>
+                </div>
+                <div class="card-body text-center">
+                    <canvas id="graficoLocalizacao" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Computadores por Marca -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-table me-2"></i> Computadores por Marca</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Marca</th>
+                            <th>Quantidade</th>
+                            <th>% do Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-marcas">
+                        <tr><td colspan="3" class="text-center">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let computadores = [];
+    let graficoStatus = null;
+    let graficoLocalizacao = null;
+
+    async function carregarRelatorios() {
+        try {
+            const response = await fetch('/api/computadores/?ativo=true&limit=1000');
+            computadores = await response.json();
+
+            // Atualiza cards
+            const total = computadores.length;
+            const ativos = computadores.filter(c => c.ativo === true).length;
+            const manutencao = computadores.filter(c => c.status === 'Manutenção').length;
+            const emUso = computadores.filter(c => c.status === 'Em uso').length;
+
+            document.getElementById('total-rel').textContent = total;
+            document.getElementById('ativos-rel').textContent = ativos;
+            document.getElementById('manutencao-rel').textContent = manutencao;
+            document.getElementById('emuso-rel').textContent = emUso;
+
+            // Gráfico de Status
+            const statusCount = {
+                'Disponível': computadores.filter(c => c.status === 'Disponível').length,
+                'Em uso': emUso,
+                'Manutenção': manutencao
+            };
+
+            if (graficoStatus) graficoStatus.destroy();
+            const ctxStatus = document.getElementById('graficoStatus').getContext('2d');
+            graficoStatus = new Chart(ctxStatus, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(statusCount),
+                    datasets: [{
+                        data: Object.values(statusCount),
+                        backgroundColor: ['#28a745', '#007bff', '#fd7e14']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // Gráfico de Localização (Top 5)
+            const localizacaoMap = new Map();
+            computadores.forEach(c => {
+                const loc = c.localizacao || 'Não informada';
+                localizacaoMap.set(loc, (localizacaoMap.get(loc) || 0) + 1);
+            });
+            const localizacaoArray = Array.from(localizacaoMap.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            if (graficoLocalizacao) graficoLocalizacao.destroy();
+            const ctxLoc = document.getElementById('graficoLocalizacao').getContext('2d');
+            graficoLocalizacao = new Chart(ctxLoc, {
+                type: 'bar',
+                data: {
+                    labels: localizacaoArray.map(item => item[0]),
+                    datasets: [{
+                        label: 'Quantidade',
+                        data: localizacaoArray.map(item => item[1]),
+                        backgroundColor: '#5bc0de'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Tabela de Marcas
+            const marcaMap = new Map();
+            computadores.forEach(c => {
+                const marca = c.marca || 'Não informada';
+                marcaMap.set(marca, (marcaMap.get(marca) || 0) + 1);
+            });
+            const marcaArray = Array.from(marcaMap.entries()).sort((a, b) => b[1] - a[1]);
+            const totalComp = computadores.length;
+
+            const tbody = document.getElementById('tabela-marcas');
+            if (marcaArray.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center">Nenhum dado disponível</td></tr>';
+            } else {
+                tbody.innerHTML = marcaArray.map(([marca, qtd]) => `
+                    <tr>
+                        <td><strong>${marca}</strong></td>
+                        <td>${qtd}</td>
+                        <td>${((qtd / totalComp) * 100).toFixed(1)}%</td>
+                    </tr>
+                `).join('');
+            }
+
+        } catch (error) {
+            console.error('Erro ao carregar relatórios:', error);
+        }
+    }
+
+    carregarRelatorios();
+</script>
+{% endblock %}
